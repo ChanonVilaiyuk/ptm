@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -- coding: utf-8 --
+
 #
 #Import python modules
 import sys, os, re
@@ -37,6 +40,9 @@ reload(sgUtils)
 from tool.utils import fileUtils
 reload(fileUtils)
 
+from tool.utils import entityInfo2 as entityInfo 
+reload(entityInfo)
+
 from tool.utils import customLog
 logger = customLog.customLog()
 logger.setLevel(customLog.DEBUG)
@@ -68,6 +74,8 @@ class MyForm(QtGui.QMainWindow):
 		self.ui = ui.Ui_taskManager()
 		self.ui.setupUi(self)
 
+		self.setWindowTitle('PT Shotgun Task Manager v.2.0')
+
 		# start 
 		self.start = datetime.now()
 
@@ -91,20 +99,22 @@ class MyForm(QtGui.QMainWindow):
 	def initData(self) : 
 		# icons
 		self.logo = '%s/%s' % (os.path.dirname(moduleDir), 'icons/logo.png')
+		self.logo2 = '%s/%s' % (os.path.dirname(moduleDir), 'icons/shotgun_logo.png')
 		self.okIcon = '%s/%s' % (os.path.dirname(moduleDir), 'icons/ok_icon.png')
 		self.xIcon = '%s/%s' % (os.path.dirname(moduleDir), 'icons/x_icon.png')
 
 		self.iconPath = '%s/icons' % os.path.dirname(moduleDir)
-		self.iconList = ['Show All', 'Ready to Start', 'In Progress', 'Need Update', 'Daily', 'Approved', 'Waiting for Client', 'Client Approved']
-		self.sgStatusMap = {'all': 'Show All', 'rdy': 'Ready to Start', 'ip': 'In Progress', 'udt': 'Need Update', 'daily': 'Daily', 'noaprv': 'Approved', 'intapr': 'Waiting for Client', 'aprv': 'Client Approved'}
+		self.iconList = ['Show All', 'Ready to Start', 'In Progress', 'Need Update', 'Daily', 'Approved', 'Pending Client', 'Client Approved']
+		self.sgStatusMap = {'all': 'Show All', 'rdy': 'Ready to Start', 'ip': 'In Progress', 'udt': 'Need Update', 'daily': 'Daily', 'noaprv': 'Pending Internal', 'intapr': 'Pending Client', 'aprv': 'Client Approved', 'wtg': 'Waiting to Start'}
 		self.sgStatusIcon = {'Show All': {'iconName': 'all_icon.png', 'sg_status_list': 'all'},
 								'Ready to Start': {'iconName': 'sg_rdy_icon.png', 'sg_status_list': 'rdy'},
 								'In Progress': {'iconName': 'sg_ip_icon.png', 'sg_status_list': 'ip'},
 								'Need Update': {'iconName': 'needUpdate.png', 'sg_status_list': 'udt'},
 								'Daily': {'iconName': 'daily_icon.png', 'sg_status_list': 'daily'},
-								'Approved': {'iconName': 'red_icon.png', 'sg_status_list': 'noaprv'},
-								'Waiting for Client': {'iconName': 'yellow_icon.png', 'sg_status_list': 'intapr'},
-								'Client Approved': {'iconName': 'green_icon.png', 'sg_status_list': 'aprv'}}
+								'Pending Internal': {'iconName': 'red_icon.png', 'sg_status_list': 'noaprv'},
+								'Pending Client': {'iconName': 'yellow_icon.png', 'sg_status_list': 'intapr'},
+								'Client Approved': {'iconName': 'green_icon.png', 'sg_status_list': 'aprv'}, 
+								'Waiting to Start': {'iconName': 'wtg_icon.png', 'sg_status_list': 'wtg'}}
 
 		self.stepMap = {'Model': 'model', 'Rig': 'rig', 'texture': 'uv', 'Surface': 'shade'}
 		self.extIcon = {'ma': '%s/icons/maya_icon.png' % (os.path.dirname(moduleDir))}
@@ -114,6 +124,7 @@ class MyForm(QtGui.QMainWindow):
 		self.entity = {'Shot': 'Shot', 'Asset': 'Asset', 'Sequence': 'Sequence'}
 		self.optionVarName = 'ptm'
 		self.optionVar = {'data': {'user': '', 'project': '', 'entity': '', 'step': ''}}
+		self.sourceFileInfo = dict()
 
 		self.widgetColor = [[0, 0, 0], [20, 20, 20]]
 
@@ -131,9 +142,11 @@ class MyForm(QtGui.QMainWindow):
 
 		# list all data in ui 
 		self.setProjectUI()
-		self.setEntityUI()
+		self.setEntityComboBox()
 		self.setStepUI()
 		self.setLabelUI()
+		
+
 
 
 	def initFunctionAfterSignal(self) : 
@@ -148,19 +161,23 @@ class MyForm(QtGui.QMainWindow):
 		logger.debug('init signal')
 		self.ui.user_comboBox.currentIndexChanged.connect(self.refreshUI)
 		# self.ui.status_comboBox.currentIndexChanged.connect(self.setEntityTypeUI)
-		self.ui.entity_comboBox.currentIndexChanged.connect(self.entitySignal)
+		self.ui.entity_comboBox.currentIndexChanged.connect(self.entityComboBoxSignal)
 		# self.ui.task_listWidget.itemSelectionChanged.connect(self.setProjectUI)
 		self.ui.project_comboBox.currentIndexChanged.connect(self.refreshUI)
 		self.ui.step_comboBox.currentIndexChanged.connect(self.refreshUI)
 		self.ui.status_listWidget.itemSelectionChanged.connect(self.setTaskUI)
-		self.ui.task_listWidget.itemSelectionChanged.connect(self.listEntity)
+		self.ui.task_listWidget.itemSelectionChanged.connect(self.setEntity)
+		self.ui.entities_listWidget.itemSelectionChanged.connect(self.entityListAction)
 		# self.ui.work_comboBox.currentIndexChanged.connect(self.listWorkFileUI)
-		# self.ui.open_pushButton.clicked.connect(self.doOpen)
-		# self.ui.filter1_checkBox.stateChanged.connect(self.filterAction)
-		# self.ui.filter2_checkBox.stateChanged.connect(self.filterAction)
-		# self.ui.filter1_comboBox.currentIndexChanged.connect(self.filterAction)
-		# self.ui.filter2_comboBox.currentIndexChanged.connect(self.filterAction)
+		self.ui.open_pushButton.clicked.connect(self.doOpen)
+		self.ui.filter1_checkBox.stateChanged.connect(self.filterAction)
+		self.ui.filter2_checkBox.stateChanged.connect(self.filterAction)
+		self.ui.filter1_comboBox.currentIndexChanged.connect(self.filterAction)
+		self.ui.filter2_comboBox.currentIndexChanged.connect(self.filterAction)
+		self.ui.search_lineEdit.textChanged.connect(self.filterAction)
+		self.ui.showAll_checkBox.stateChanged.connect(self.showNoteAction)
 		# self.ui.list_pushButton.clicked.connect(self.refreshUI)
+		self.ui.refresh_pushButton.clicked.connect(self.refreshUI)
 
 
 	def setUI(self) : 
@@ -251,84 +268,168 @@ class MyForm(QtGui.QMainWindow):
 		# add comboBox items
 		i = 0
 		self.ui.status_listWidget.clear()
+		self.ui.task_listWidget.clear()
+		self.ui.entities_listWidget.clear()
+		self.ui.comment_plainTextEdit.clear()
+		self.ui.sourceFiles_listWidget.clear()
+
 		listWidget = 'status_listWidget'
+		if self.taskInfo : 
 
-		for each in self.taskInfo.keys() : 
-			sg_status_list = each
-			displayStatus = self.sgStatusMap[sg_status_list]
-			iconFile = self.sgStatusIcon[displayStatus]['iconName']
-			iconPath = '%s/%s' % (self.iconPath, iconFile)
-			bgColor = [0, 0, 0]
-			
-			count = 0
-			for eachTask in self.taskInfo[each] : 
-				count += len(self.taskInfo[each][eachTask])
+			for each in sorted(self.taskInfo.keys()) : 
+				sg_status_list = each
+				displayStatus = self.sgStatusMap[sg_status_list]
+				iconFile = self.sgStatusIcon[displayStatus]['iconName']
+				iconPath = '%s/%s' % (self.iconPath, iconFile)
+				bgColor = self.widgetColor[0]
+				
+				count = 0
+				for eachTask in self.taskInfo[each] : 
+					count += len(self.taskInfo[each][eachTask])
 
-			text2 = '(%s)' % str(count)
+				text2 = '(%s)' % str(count)
 
-			self.addEntityListWidget(listWidget, displayStatus, text2, bgColor, iconPath)
+				self.addEntityListWidget(listWidget, displayStatus, text2, bgColor, iconPath)
 
-		self.ui.status_listWidget.setCurrentRow(0)
+				i += 1
+
+			self.ui.status_listWidget.setCurrentRow(0)
+
+		else : 
+			self.addEntityListWidget(listWidget, 'No Data', '', [0, 0, 0], '')
 
 
 	def listContent(self) : 
-		self.taskInfo = self.getTaskInfo()
+		self.taskInfo, self.sgTaskInfo = self.getTaskInfo()
 		self.setStatusUI()
 
 
-	def listEntity(self) : 
-		self.ui.entities_listWidget.clear()
+	def setEntity(self) : 
+		# set filters
+		self.setFilter()
+		
+		# list UI
+		self.setEntityUI()
 
+
+	def getSelStatus(self) : 
 		# get status 
 		statusListWidget = 'status_listWidget'
-		itemStatus = self.getEntityListWidget(statusListWidget)[0]
-		status = self.sgStatusIcon[itemStatus]['sg_status_list']
+		itemStatus = self.getEntityListWidget(statusListWidget)
 
+		if itemStatus : 
+			status = self.sgStatusIcon[itemStatus[0]]['sg_status_list']
+
+			return status 
+
+	def getSelTask(self) : 
 		# get task 
 		taskListWidget = 'task_listWidget'
-		itemStatus = self.getEntityListWidget(taskListWidget)[0]
-		task = itemStatus
+		task = self.getEntityListWidget(taskListWidget)[0]
+
+		return task
+
+	def getSelEntity(self) : 
+		# get entity 
+		entityListWidget = 'entities_listWidget'
+		entity = self.getEntityListWidget2(entityListWidget)
+
+		return entity
+
+
+
+	def setEntityUI(self) : 
+		status = self.getSelStatus()
+		task = self.getSelTask()
+
+		self.ui.entities_listWidget.clear()
+		self.ui.comment_plainTextEdit.clear()
+		self.ui.sourceFiles_listWidget.clear()
+		self.ui.work_listWidget.clear()
+
+		# filter
+		filterSt1 = self.ui.filter1_checkBox.isChecked()
+		filterSt2 = self.ui.filter2_checkBox.isChecked()
+		filterValue1 = str(self.ui.filter1_comboBox.currentText())
+		filterValue2 = str(self.ui.filter2_comboBox.currentText())
+		searchValue = str(self.ui.search_lineEdit.text())
 
 		# list content 
-		if task in self.taskInfo[status].keys() : 
-			entityInfos = self.taskInfo[status][task]
+		if status in self.taskInfo.keys() : 
+			if task in self.taskInfo[status].keys() : 
+				entityInfos = self.taskInfo[status][task]
+				i = 0 
 
-			for each in sorted(entityInfos) : 
-				name = each['entityName']
+				for each in sorted(entityInfos) : 
+					name = each['entityName']
+					entitySub1 = each['entitySub1']
+					entitySub2 = each['entitySub2']
+					sgStatus = each['status']
 
-				sgStatus = each['status']
-				displayStatus = self.sgStatusMap[sgStatus]
-				iconName = self.sgStatusIcon[displayStatus]['iconName']
-				iconPath = '%s/%s' % (self.iconPath, iconName)
+					# icon path 
+					displayStatus = self.sgStatusMap[sgStatus]
+					iconName = self.sgStatusIcon[displayStatus]['iconName']
+					iconPath = '%s/%s' % (self.iconPath, iconName)
 
-				display = '%s' % name
-				color = [0, 0, 0]
-				listWidget = 'entities_listWidget'
-				self.addListWidgetItem(listWidget, display, iconPath, color)
+					# display 
+					display = '%s' % name
+					color = self.widgetColor[i%2]
+					listWidget = 'entities_listWidget'
+
+					show = True
+
+					# filters 
+					if filterSt1 : 
+						if not entitySub1 == filterValue1 : 
+							show = False
+
+					if filterSt2 : 
+						if not entitySub2 == filterValue2 : 
+							show = False
+
+					if searchValue : 
+						if not searchValue in name : 
+							show = False
+
+					# add items 
+					if show : 
+						# self.addListWidgetItem(listWidget, display, iconPath, color)
+						self.addEntityListWidget2(listWidget, display, entitySub1, entitySub2, color, iconPath, size = 16)
+
+					i += 1 
 
 
 	def setTaskUI(self) : 
 		logger.debug('setTaskUI')
 		# status = self.ui.status_listWidget.currentItem()
-		listWidget = 'status_listWidget'
-		itemStatus = self.getEntityListWidget(listWidget)[0]
+		statusListWidget = 'status_listWidget'
+		itemStatus = self.getEntityListWidget(statusListWidget)[0]
 		status = self.sgStatusIcon[itemStatus]['sg_status_list']
 
 		if status : 
-			tasks = self.taskInfo[status].keys()
+			if status in self.taskInfo.keys() : 
+				tasks = self.taskInfo[status].keys()
 
-			self.ui.task_listWidget.clear()
-			listWidget = 'task_listWidget'
+				self.ui.task_listWidget.clear()
+				self.ui.entities_listWidget.clear()
+				self.ui.comment_plainTextEdit.clear()
+				self.ui.sourceFiles_listWidget.clear()
+				self.ui.work_listWidget.clear()
 
-			for each in tasks : 
-				taskName = each
-				count = len(self.taskInfo[status][taskName])
-				text2 = '(%s)' % str(count)
-				bgColor = [0, 0, 0]
-				iconPath = ''
-				self.addEntityListWidget(listWidget, taskName, text2, bgColor, iconPath)
+				taskListWidget = 'task_listWidget'
+				i = 0
 
-			self.ui.task_listWidget.setCurrentRow(0)
+				for each in tasks : 
+					taskName = each
+					count = len(self.taskInfo[status][taskName])
+					text2 = '(%s)' % str(count)
+					bgColor = self.widgetColor[i%2]
+					iconPath = ''
+					self.addEntityListWidget(taskListWidget, taskName, text2, bgColor, iconPath)
+
+					i += 1
+
+				self.ui.task_listWidget.setCurrentRow(0)
 
 
 
@@ -347,7 +448,7 @@ class MyForm(QtGui.QMainWindow):
 			self.ui.project_comboBox.setCurrentIndex(index)
 		
 
-	def setEntityUI(self) : 
+	def setEntityComboBox(self) : 
 		self.ui.entity_comboBox.clear()
 		self.ui.entity_comboBox.addItems(sorted(self.entity.keys()))
 
@@ -358,7 +459,7 @@ class MyForm(QtGui.QMainWindow):
 			self.ui.entity_comboBox.setCurrentIndex(index)
 
 
-	def entitySignal(self) : 
+	def entityComboBoxSignal(self) : 
 		self.setStepUI()
 		self.setLabelUI()
 
@@ -398,6 +499,37 @@ class MyForm(QtGui.QMainWindow):
 			self.ui.filter1_checkBox.setText('Episode')
 			self.ui.filter2_checkBox.setText('Sequence')
 
+
+
+	def entityListAction(self) : 
+		# find associate path
+		selStatus = self.getSelStatus()
+		selTask = self.getSelTask()
+		selEntity = self.getSelEntity()
+		selProject = str(self.ui.project_comboBox.currentText())
+		entityType = str(self.ui.entity_comboBox.currentText())		
+		step = str(self.ui.step_comboBox.currentText())
+		serverStep = setting.stepSgPipeMap[step]
+
+		entityName = selEntity[0]
+		entitySub1 = selEntity[1]
+		entitySub2 = selEntity[2]
+
+		entity = entityInfo.info2(entityType, selProject, entityName, entitySub1, entitySub2)
+		workDir = entity.workDir(serverStep, selTask)
+
+		# set UI
+		self.ui.path_lineEdit.setText(workDir)
+		self.setPathUI(workDir)
+
+		# list work area
+		self.listWorkFileUI()
+
+		# list note 
+		self.showNoteAction()
+
+		# list source file
+		self.showSourceFile()
 
 
 
@@ -452,135 +584,144 @@ class MyForm(QtGui.QMainWindow):
 # 				i += 1
 
 
-# 	def setFilter(self, entityType) : 
+	def setFilter(self) : 
+		status = self.getSelStatus()
+		task = self.getSelTask()
 
-# 		entityInfo = self.entityInfo
-# 		logger.debug('set filter')
-# 		# clear UI
-# 		self.ui.filter1_comboBox.clear()
-# 		self.ui.filter2_comboBox.clear()
+		taskInfo = self.taskInfo
+		filter1 = []
+		filter2 = []
 
-# 		filter1 = []
-# 		filter2 = []
+		if status in taskInfo.keys() : 
+			if task in taskInfo[status].keys() : 
+				entityInfos = taskInfo[status][task]
 
-# 		if entityType == 'Asset' : 
-# 			self.ui.filter1_checkBox.setText('Type')
-# 			self.ui.filter2_checkBox.setText('Sub Type')
+				for each in entityInfos : 
+					name = each['entityName']
+					entitySub1 = each['entitySub1']
+					entitySub2 = each['entitySub2']
 
-# 		if entityType == 'Shot' : 
-# 			self.ui.filter1_checkBox.setText('Episode')
-# 			self.ui.filter2_checkBox.setText('Sequence')
+					if not entitySub1 in filter1 : 
+						filter1.append(entitySub1)
 
-# 		for each in sorted(entityInfo) : 
-# 			entitySub1 = each['entitySub1']
-# 			entitySub2 = each['entitySub2']
+					if not entitySub2 in filter2 : 
+						filter2.append(entitySub2)
 
-# 			print entitySub1, entitySub2
+		self.ui.filter1_comboBox.clear()
+		self.ui.filter2_comboBox.clear()
+		self.ui.filter1_comboBox.addItems(sorted(filter1))
+		self.ui.filter2_comboBox.addItems(sorted(filter2))
 
-# 			if not entitySub1 in filter1 : 
-# 				filter1.append(entitySub1)
-				
-# 			if not entitySub2 in filter2 : 
-# 				filter2.append(entitySub2)	
-
-# 		for each in sorted(filter1) : 
-# 			self.ui.filter1_comboBox.addItem(each)
-
-# 		for each in sorted(filter2) : 
-# 			self.ui.filter2_comboBox.addItem(each)		
+	def filterAction(self) : 
+		self.setEntityUI()
 
 
-# 	def filterAction(self) : 
-# 		self.setEntityUICmd()
+	# def listWorkAreaUI(self) : 
+	# 	# clear UI
+	# 	self.ui.work_comboBox.clear()
+	# 	self.ui.path_lineEdit.setText('')
+	# 	self.ui.work_listWidget.clear()
+
+	# 	sgStatus = self.getStatusUI()
+	# 	taskEntity = str(self.ui.entities_comboBox.currentText())
+
+	# 	if self.ui.task_listWidget.currentItem() : 
+	# 		task = str(self.ui.task_listWidget.currentItem().text())
+	# 		project = str(self.ui.project_comboBox.currentText())
+
+	# 		if self.ui.entities_listWidget.currentItem() : 
+	# 			entity = str(self.ui.entities_listWidget.currentItem().text())
+
+	# 			if taskEntity == 'Asset' : 
+	# 				entity1 = self.entities[entity]['entitySub1']
+	# 				entity2 = self.entities[entity]['entitySub2']
+	# 				entityName = self.entities[entity]['entityName']
+	# 				step = self.entities[entity]['step']
+	# 				stepDisplay = self.stepMap[step]
+	# 				path = self.getEntityPath(taskEntity, project, entity1, entity2, entityName, step, task)
+	# 				logger.debug('setPath %s' % path)
+
+	# 			if taskEntity == 'Shot' : 
+	# 				entity1 = self.entities[entity]['entitySub1']
+	# 				entity2 = self.entities[entity]['entitySub2']
+	# 				entityName = self.entities[entity]['entityName']
+	# 				step = self.entities[entity]['step']
+	# 				path = self.getEntityPath(taskEntity, project, entity1, entity2, entityName, step, task)
+	# 				logger.debug('setPath %s' % path)
+
+	# 			logger.debug(path)
+	# 			self.ui.path_lineEdit.setText(path)
+	# 			self.setPathUI(path)
+
+	# 			if os.path.exists(path) : 
+	# 				dirs = fileUtils.listFolder(path)
+	# 				self.setWorkAreaComboBox(dirs)
+
+	# 			logger.debug('listWorkAreaUI 	%s %s %s %s %s' % (sgStatus, taskEntity, task, project, entity))
 
 
-# 	def listWorkAreaUI(self) : 
-# 		# clear UI
-# 		self.ui.work_comboBox.clear()
-# 		self.ui.path_lineEdit.setText('')
-# 		self.ui.work_listWidget.clear()
+	def listWorkFileUI(self) : 
+		# clear UI
+		self.ui.work_listWidget.clear()
 
-# 		sgStatus = self.getStatusUI()
-# 		taskEntity = str(self.ui.entities_comboBox.currentText())
+		path = str(self.ui.path_lineEdit.text())
+		# workArea = str(self.ui.work_comboBox.currentText()) 
 
-# 		if self.ui.task_listWidget.currentItem() : 
-# 			task = str(self.ui.task_listWidget.currentItem().text())
-# 			project = str(self.ui.project_comboBox.currentText())
+		files = fileUtils.listFile(path)
+		listWidget = 'work_listWidget'
 
-# 			if self.ui.entities_listWidget.currentItem() : 
-# 				entity = str(self.ui.entities_listWidget.currentItem().text())
-
-# 				if taskEntity == 'Asset' : 
-# 					entity1 = self.entities[entity]['entitySub1']
-# 					entity2 = self.entities[entity]['entitySub2']
-# 					entityName = self.entities[entity]['entityName']
-# 					step = self.entities[entity]['step']
-# 					stepDisplay = self.stepMap[step]
-# 					path = self.getEntityPath(taskEntity, project, entity1, entity2, entityName, step, task)
-# 					logger.debug('setPath %s' % path)
-
-# 				if taskEntity == 'Shot' : 
-# 					entity1 = self.entities[entity]['entitySub1']
-# 					entity2 = self.entities[entity]['entitySub2']
-# 					entityName = self.entities[entity]['entityName']
-# 					step = self.entities[entity]['step']
-# 					path = self.getEntityPath(taskEntity, project, entity1, entity2, entityName, step, task)
-# 					logger.debug('setPath %s' % path)
-
-# 				logger.debug(path)
-# 				self.ui.path_lineEdit.setText(path)
-# 				self.setPathUI(path)
-
-# 				if os.path.exists(path) : 
-# 					dirs = fileUtils.listFolder(path)
-# 					self.setWorkAreaComboBox(dirs)
-
-# 				logger.debug('listWorkAreaUI 	%s %s %s %s %s' % (sgStatus, taskEntity, task, project, entity))
+		self.listFileListWidget(listWidget, files)
 
 
-# 	def listWorkFileUI(self) : 
-# 		# clear UI
-# 		self.ui.work_listWidget.clear()
+	def listFileListWidget(self, listWidget, items) : 
 
-# 		path = str(self.ui.path_lineEdit.text())
-# 		workArea = str(self.ui.work_comboBox.currentText()) 
+		i = 0
 
-# 		browsePath = '%s/%s' % (path, workArea)
+		if items : 
+			for each in items : 
+				ext = each.split('.')[-1]
+				iconPath = ''
+				bgColor = self.widgetColor[i%2]
 
-# 		files = fileUtils.listFile(browsePath)
-# 		listWidget = 'work_listWidget'
+				if ext in self.extIcon.keys() : 
+					iconPath = self.extIcon[ext]
+				# self.ui.work_listWidget.addItem(each)
+				self.addListWidgetItem(listWidget, each, iconPath, bgColor)
 
-# 		i = 0
+				i += 1
 
-# 		for each in files : 
-# 			ext = each.split('.')[-1]
-# 			iconPath = ''
-# 			bgColor = self.widgetColor[i%2]
-
-# 			if ext in self.extIcon.keys() : 
-# 				iconPath = self.extIcon[ext]
-# 				print iconPath
-# 			# self.ui.work_listWidget.addItem(each)
-# 			self.addListWidgetItem(listWidget, each, iconPath, bgColor)
-
-# 			i += 1
+		else : 
+			self.addListWidgetItem(listWidget, 'No file', '', [0, 0, 0])
 
 
 
-# 	def doOpen(self) : 
-# 		path = str(self.ui.path_lineEdit.text())
-# 		workArea = str(self.ui.work_comboBox.currentText()) 
-# 		if self.ui.work_listWidget.currentItem() : 
-# 			fileName = str(self.ui.work_listWidget.currentItem().text())
-# 			filePath = '%s/%s/%s' % (path, workArea, fileName)
+	def doOpen(self) : 
+		path = str(self.ui.path_lineEdit.text())
+		# workArea = str(self.ui.work_comboBox.currentText()) 
+		if self.ui.work_listWidget.currentItem() : 
+			fileName = str(self.ui.work_listWidget.currentItem().text())
+			filePath = '%s/%s' % (path, fileName)
 
-# 			if os.path.exists(filePath) : 
-# 				hook.openFile(filePath)
+			if os.path.exists(filePath) : 
+				hook.openFile(filePath)
 
-# 			else : 
-# 				title = 'Error'
-# 				description = 'File not found %s' % filePath
-# 				self.messageBox(title, description)
+				# set task status 
+				ipCheckBox = self.ui.ip_checkBox.isChecked()
+				setTask = True
+
+				if not ipCheckBox : 
+					result = self.messageBox2('Confirm Dialog', 'Set task status to "in progress"?')
+
+					if not result == QtGui.QMessageBox.Yes : 
+						setTask = False
+
+				if setTask : 
+					result2 = self.setTaskStatus()
+
+			else : 
+				title = 'Error'
+				description = 'File not found %s' % filePath
+				self.messageBox(title, description)
 
 
 
@@ -601,14 +742,14 @@ class MyForm(QtGui.QMainWindow):
 # 		self.ui.work_comboBox.setCurrentIndex(index)
 
 
-# 	def setPathUI(self, path) : 
-# 		if os.path.exists(path) : 
-# 			self.setLabel(True)
-# 			dirs = fileUtils.listFolder(path)
+	def setPathUI(self, path) : 
+		if os.path.exists(path) : 
+			self.setLabel(True)
+			dirs = fileUtils.listFolder(path)
 
-# 		else : 
-# 			self.setLabel(False)
-# 			logger.info('%s not exists' % path)
+		else : 
+			self.setLabel(False)
+			logger.info('%s not exists' % path)
 
 
 
@@ -644,71 +785,74 @@ class MyForm(QtGui.QMainWindow):
 		logger.debug('%s' % (datetime.now() - start))
 
 		infoDict = dict()
+		sgTaskInfo = dict()
 
-		for each in taskInfo : 
-			status = each['sg_status_list']
-			taskName = each['content']
-			entity = each['entity']
-			entities = dict()
+		if taskInfo : 
+			for each in taskInfo : 
+				status = each['sg_status_list']
+				taskName = each['content']
+				taskID = each['id']
+				entity = each['entity']
+				step = each['step']
+				entities = dict()
 
-			if entity : 
-				entityType = entity['type']
+				entityName = str()
 
-				if entityType == 'Asset' : 
-					assetName = each['entity.Asset.code']
-					assetType = each['entity.Asset.sg_asset_type']
-					assetSubType = each['entity.Asset.sg_subtype']
-					entityName = assetName
-					entitySub1 = assetType
-					entitySub2 = assetSubType
-					displayName = assetName
-					entities.update({'entityName': entityName, 'entitySub1': entitySub1, 'entitySub2': entitySub2, 'status': status})
-					# entities = {'name': displayName, 'status': status}
+				if entity : 
+					entityType = entity['type']
 
-				if entityType == 'Shot' : 
-					shotName = each['entity.Shot.code']
-					sequenceName = each['entity.Shot.sg_sequence']
-					episodeName = each['entity.Shot.sg_scene']
-					entityName = shotName
-					displayName = shotName
+					if entityType == 'Asset' : 
+						assetName = each['entity.Asset.code']
+						assetType = each['entity.Asset.sg_asset_type']
+						assetSubType = each['entity.Asset.sg_subtype']
+						entityName = assetName
+						entitySub1 = assetType
+						entitySub2 = assetSubType
+						displayName = assetName
+						entities.update({'entityName': entityName, 'entitySub1': entitySub1, 'entitySub2': entitySub2, 'status': status, 'step': step, 'taskID': taskID})
+						# entities = {'name': displayName, 'status': status}
 
-					if episodeName : 
-						entitySub1 = episodeName['name']
-						# episodeCode = self.getEpisodeCode(episodeName['name'])
+					if entityType == 'Shot' : 
+						shotName = each['entity.Shot.code']
+						sequenceName = each['entity.Shot.sg_sequence']
+						episodeName = each['entity.Shot.sg_scene']
+						entityName = shotName
+						displayName = shotName
 
-					if sequenceName : 
-						entitySub2 = sequenceName['name']
+						if episodeName : 
+							entitySub1 = episodeName['name']
+							# episodeCode = self.getEpisodeCode(episodeName['name'])
 
-					entities.update({'entityName': entityName, 'entitySub1': entitySub1, 'entitySub2': entitySub2, 'status': status})
-					# entities = {'name': displayName, 'status': status}
-			
-			statuses = [status, 'all']
+						if sequenceName : 
+							entitySub2 = sequenceName['name']
 
-			for eachStatus in statuses : 
-				if eachStatus in infoDict.keys() : 
-					if taskName in infoDict[eachStatus].keys() : 
-						infoDict[eachStatus][taskName].append(entities)
+						entities.update({'entityName': entityName, 'entitySub1': entitySub1, 'entitySub2': entitySub2, 'status': status, 'step': step, 'taskID': taskID})
+						# entities = {'name': displayName, 'status': status}
+				
+				statuses = [status, 'all']
+
+				for eachStatus in statuses : 
+					if eachStatus in infoDict.keys() : 
+						if taskName in infoDict[eachStatus].keys() : 
+							infoDict[eachStatus][taskName].append(entities)
+
+						else : 
+							infoDict[eachStatus].update({taskName: [entities]})
 
 					else : 
-						infoDict[eachStatus].update({taskName: [entities]})
+						infoDict.update({eachStatus: {taskName: [entities]}})
+
+				if entityName in sgTaskInfo.keys() : 
+					if taskName in sgTaskInfo[entityName] : 
+						sgTaskInfo[entityName][taskName] = each
+
+					else : 
+						sgTaskInfo[entityName].update({taskName: each})
 
 				else : 
-					infoDict.update({eachStatus: {taskName: [entities]}})
+					sgTaskInfo.update({entityName: {taskName: each}})
 
-		return infoDict 
-
-
-	def addAll(self) : 
-		allDict = dict()
-		for each in self.taskInfo : 
-			taskName = self.taskInfo[each]
-
-			for eachTask in taskName : 
-				if not eachTask in allDict : 
-					allDict.update({eachTask: taskName[eachTask]})
-
-				else : 
-					allDict[eachTask].update(taskName[eachTask])
+		return infoDict, sgTaskInfo
 
 
 	def getTaskEntities(self) : 
@@ -720,6 +864,7 @@ class MyForm(QtGui.QMainWindow):
 		projectEntity = self.projects[project]
 
 		step = str(self.ui.step_comboBox.currentText())
+		print 'step %s' % step
 		if step in self.steps.keys() : 
 			stepEntity = self.steps[step]
 
@@ -753,7 +898,7 @@ class MyForm(QtGui.QMainWindow):
 
 
 	def taskFields(self) : 
-		fields = ['content', 'entity', 'step', 'project', 'sg_status_list']
+		fields = ['content', 'entity', 'step', 'project', 'sg_status_list', 'sg_workfile']
 		assetFields = ['entity.Asset.code', 'entity.Asset.sg_asset_type', 'entity.Asset.sg_subtype']
 		shotFields = ['entity.Shot.code', 'entity.Shot.sg_sequence', 'entity.Shot.sg_scene']
 
@@ -762,6 +907,115 @@ class MyForm(QtGui.QMainWindow):
 
 		return fields
 
+
+	def setTaskStatus(self) : 
+		taskEntity = self.getCurrentTaskEntity()
+
+		taskID = taskEntity['id']
+		data = {'sg_status_list': 'ip'}
+
+		result = sgUtils.sgUpdateTask(taskID, data)
+		self.refreshUI()
+
+		logger.debug(result)
+
+		return result
+
+
+	def showNoteAction(self) : 
+		showNote = self.ui.note_checkBox.isChecked()
+		showAll = self.ui.showAll_checkBox.isChecked()
+
+		if showNote : 
+			notes = self.noteData(showAll = showAll)
+			texts = []
+
+			if notes : 
+				for each in sorted(notes.keys()) : 
+					text1 = 'Subject : %s' % notes[each]['subject']
+					text2 = '- %s' % notes[each]['content']
+					texts.append(text1)
+					texts.append(text2)
+					texts.append('-------------------------------------------')
+
+				rawText = ('\n').join(texts)
+				text = self.translateUTF8(rawText)
+				self.ui.comment_plainTextEdit.setPlainText(text)
+
+			else : 
+				text = 'No note'
+				self.ui.comment_plainTextEdit.setPlainText(text)
+
+
+	def noteData(self, showAll = True) : 
+		notes = self.getSgNote()
+		selTask = self.getSelTask()
+		data = dict()
+
+		if notes : 
+			i = 0
+			for each in notes : 
+				tasks = each['tasks']
+				show = True
+				for task in tasks : 
+					taskName = task['name']
+
+					if not showAll : 
+						if not taskName == selTask : 
+							show = False
+
+				if show : 
+					content = each['content']
+					subject = each['subject']
+					data[i] = {'subject': subject, 'content': content}
+
+					i += 1 
+
+		return data
+
+	def translateUTF8(self, text) : 
+		return QtGui.QApplication.translate("taskManager", text, None, QtGui.QApplication.UnicodeUTF8)
+				
+
+	def getSgNote(self) : 
+		taskEntity = self.getCurrentTaskEntity()
+		entity = taskEntity['entity']
+
+		filters = [['note_links', 'is', entity]]
+		fields = ['tasks', 'content', 'subject']
+
+		result = sgUtils.sg.find('Note', filters, fields)
+		return result 
+
+
+	def showSourceFile(self) : 
+		self.ui.sourceFiles_listWidget.clear()
+
+		taskEntity = self.getCurrentTaskEntity()
+		filePaths = []
+
+		if taskEntity['sg_workfile'] : 
+			filePath = [taskEntity['sg_workfile']['local_path_windows']]
+			filePaths = [os.path.basename(a) for a in filePath]
+
+		self.listFileListWidget('sourceFiles_listWidget', filePaths)
+
+		if filePaths : 
+			for each in filePaths : 
+				self.sourceFileInfo.update({os.path.basename(each): each})
+
+
+
+	def getCurrentTaskEntity(self) : 
+		selStatus = self.getSelStatus()
+		selTask = self.getSelTask()
+		selEntity = self.getSelEntity()
+		entityName = selEntity[0]
+
+		if entityName in self.sgTaskInfo.keys() : 
+			if selTask in self.sgTaskInfo[entityName].keys() : 
+				taskEntity = self.sgTaskInfo[entityName][selTask]
+				return taskEntity
 
 
 		
@@ -910,6 +1164,7 @@ class MyForm(QtGui.QMainWindow):
 	# UI area 
 	def setLogo(self) : 
 		self.ui.logo_label.setPixmap(QtGui.QPixmap(self.logo).scaled(200, 60, QtCore.Qt.KeepAspectRatio))
+		self.ui.logo2_label.setPixmap(QtGui.QPixmap(self.logo2).scaled(200, 60, QtCore.Qt.KeepAspectRatio))
 		# self.ui.logo2_label.setPixmap(QtGui.QPixmap(self.logo2).scaled(200, 60, QtCore.Qt.KeepAspectRatio))
 
 	# add widget area
@@ -952,10 +1207,43 @@ class MyForm(QtGui.QMainWindow):
 	def getEntityListWidget(self, listWidget) : 
 		item = eval('self.ui.%s.currentItem()' % listWidget)
 		customWidget = eval('self.ui.%s.itemWidget(item)' % listWidget)
+
+		if customWidget : 
+			text1 = customWidget.text1()
+			text2 = customWidget.text2()
+
+			return [text1, text2]
+
+
+	def addEntityListWidget2(self, listWidget, text1, text2, text3, bgColor, iconPath, size) : 
+		myCustomWidget = customWidget.customQWidgetItem2()
+		myCustomWidget.setText1(text1)
+		myCustomWidget.setText2(text2)
+		myCustomWidget.setText3(text3)
+
+		myCustomWidget.setTextColor1([200, 200, 200])
+		myCustomWidget.setTextColor2([120, 120, 120])
+		myCustomWidget.setTextColor3([120, 120, 120])
+
+		myCustomWidget.setIcon(iconPath, size)
+
+		item = eval('QtGui.QListWidgetItem(self.ui.%s)' % listWidget)
+		item.setSizeHint(myCustomWidget.sizeHint())
+		item.setBackground(QtGui.QColor(bgColor[0], bgColor[1], bgColor[2]))
+
+
+		eval('self.ui.%s.addItem(item)' % listWidget)
+		eval('self.ui.%s.setItemWidget(item, myCustomWidget)' % listWidget)
+
+
+	def getEntityListWidget2(self, listWidget) : 
+		item = eval('self.ui.%s.currentItem()' % listWidget)
+		customWidget = eval('self.ui.%s.itemWidget(item)' % listWidget)
 		text1 = customWidget.text1()
 		text2 = customWidget.text2()
+		text3 = customWidget.text3()
 
-		return [text1, text2]
+		return [text1, text2, text3]
 
 
 	def addListWidgetItem(self, listWidget, text, iconPath, color) : 
@@ -980,6 +1268,13 @@ class MyForm(QtGui.QMainWindow):
 		return result
 
 
+	def messageBox2(self, title, description) : 
+		# result = QtGui.QMessageBox.question(self,title,description ,QtGui.QMessageBox.AcceptRole, QtGui.QMessageBox.Ok, QtGui.QMessageBox.Cancel)
+		result = QtGui.QMessageBox.question(self,title,description ,QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+
+		return result
+
+
 
 	def logTime(self, start, finish) : 
 		duration = finish - start 
@@ -988,49 +1283,49 @@ class MyForm(QtGui.QMainWindow):
 
 
 
-# class userDialog(QtGui.QDialog, MyForm):
+class userDialog(QtGui.QDialog, MyForm):
 
-# 	def __init__(self, parent = None):
-# 		QtGui.QDialog.__init__(self, parent)
-# 		self.ui = dialog.Ui_Dialog()
-# 		self.ui.setupUi(self)
+	def __init__(self, parent = None):
+		QtGui.QDialog.__init__(self, parent)
+		self.ui = dialog.Ui_Dialog()
+		self.ui.setupUi(self)
 
-# 		self.result = None
-# 		self.users = getAllSgUser()
-# 		self.setLocalUser()
-# 		self.setUser()
-# 		self.ui.setUser_pushButton.clicked.connect(self.assignLocalUser)
-
-
-# 	def setUser(self) : 
-# 		self.ui.user_listWidget.clear()
-
-# 		for user in sorted(self.users) : 
-# 			self.ui.user_listWidget.addItem(user)
+		self.result = None
+		self.users = getAllSgUser()
+		self.setLocalUser()
+		self.setUser()
+		self.ui.setUser_pushButton.clicked.connect(self.assignLocalUser)
 
 
-# 	def setLocalUser(self) : 
-# 		self.ui.localUser_lineEdit.setText(thisUser())
+	def setUser(self) : 
+		self.ui.user_listWidget.clear()
 
-# 	def assignLocalUser(self) : 
-# 		user = str(self.ui.localUser_lineEdit.text())
-# 		if self.ui.user_listWidget.currentItem() : 
-# 			sgUser = str(self.ui.user_listWidget.currentItem().text())
-
-# 			userEntity = self.users[sgUser]
-# 			userID = userEntity['id']
-# 			data = {'sg_localuser': user}
-
-# 			self.result = sgUtils.sg.update('HumanUser', userID, data)
-
-# 			logger.debug('Assigned result')
-# 			logger.debug(self.result)
-
-# 			super(userDialog, self).accept()
+		for user in sorted(self.users) : 
+			self.ui.user_listWidget.addItem(user)
 
 
-# 	def returnValue(self) : 
-# 		return self.result
+	def setLocalUser(self) : 
+		self.ui.localUser_lineEdit.setText(thisUser())
+
+	def assignLocalUser(self) : 
+		user = str(self.ui.localUser_lineEdit.text())
+		if self.ui.user_listWidget.currentItem() : 
+			sgUser = str(self.ui.user_listWidget.currentItem().text())
+
+			userEntity = self.users[sgUser]
+			userID = userEntity['id']
+			data = {'sg_localuser': user}
+
+			self.result = sgUtils.sg.update('HumanUser', userID, data)
+
+			logger.debug('Assigned result')
+			logger.debug(self.result)
+
+			super(userDialog, self).accept()
+
+
+	def returnValue(self) : 
+		return self.result
 
 
 def getAllSgUser() : 

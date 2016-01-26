@@ -16,7 +16,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_9">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="18,6">
+     <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="18,3,3">
       <item>
        <widget class="QFrame" name="frame">
         <property name="frameShape">
@@ -96,6 +96,16 @@
           </layout>
          </item>
         </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="logo2_label">
+        <property name="text">
+         <string>TextLabel</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
        </widget>
       </item>
       <item>
@@ -200,17 +210,10 @@
              <item>
               <layout class="QHBoxLayout" name="horizontalLayout_5">
                <item>
-                <widget class="QCheckBox" name="checkBox_3">
-                 <property name="text">
-                  <string>Search</string>
-                 </property>
-                </widget>
+                <widget class="QLineEdit" name="search_lineEdit"/>
                </item>
                <item>
-                <widget class="QLineEdit" name="lineEdit"/>
-               </item>
-               <item>
-                <widget class="QPushButton" name="pushButton_2">
+                <widget class="QPushButton" name="search_pushButton">
                  <property name="text">
                   <string>Search</string>
                  </property>
@@ -236,6 +239,30 @@
                </item>
                <item>
                 <widget class="QListWidget" name="entities_listWidget"/>
+               </item>
+               <item>
+                <widget class="Line" name="line_2">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="note_checkBox">
+                 <property name="text">
+                  <string>Show note</string>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="refresh_pushButton">
+                 <property name="text">
+                  <string>Refresh</string>
+                 </property>
+                </widget>
                </item>
               </layout>
              </item>
@@ -281,6 +308,16 @@
           <widget class="QListWidget" name="work_listWidget"/>
          </item>
          <item>
+          <widget class="QCheckBox" name="ip_checkBox">
+           <property name="text">
+            <string>Always set status to &quot;in progress&quot;</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QPushButton" name="open_pushButton">
            <property name="minimumSize">
             <size>
@@ -316,6 +353,16 @@
           <widget class="QPlainTextEdit" name="comment_plainTextEdit"/>
          </item>
          <item>
+          <widget class="QCheckBox" name="showAll_checkBox">
+           <property name="text">
+            <string>Show all note</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
           <widget class="QLabel" name="label_13">
            <property name="text">
             <string>source files : </string>
@@ -323,7 +370,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QListWidget" name="publish_listWidget"/>
+          <widget class="QListWidget" name="sourceFiles_listWidget"/>
          </item>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_4">

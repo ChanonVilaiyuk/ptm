@@ -47,3 +47,7 @@ def sgGetTask(filters, fields) :
 	taskEntities = sg.find('Task', filters, fields)
 
 	return taskEntities
+
+
+def sgUpdateTask(taskID, data) : 
+	return sg.update('Task', taskID, data)
