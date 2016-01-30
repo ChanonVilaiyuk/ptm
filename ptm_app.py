@@ -89,7 +89,7 @@ class MyForm(QtGui.QMainWindow):
 		self.initSignal()
 
 		# run after signal
-		self.initFunctionAfterSignal()
+		# self.initFunctionAfterSignal()
 
 		# finish loading data 
 		self.finish = datetime.now()
@@ -142,9 +142,11 @@ class MyForm(QtGui.QMainWindow):
 
 		# list all data in ui 
 		self.setProjectUI()
+		self.setEpisodeUI()
 		self.setEntityComboBox()
 		self.setStepUI()
 		self.setLabelUI()
+		self.listContent()
 		
 
 
@@ -163,18 +165,19 @@ class MyForm(QtGui.QMainWindow):
 		# self.ui.status_comboBox.currentIndexChanged.connect(self.setEntityTypeUI)
 		self.ui.entity_comboBox.currentIndexChanged.connect(self.entityComboBoxSignal)
 		# self.ui.task_listWidget.itemSelectionChanged.connect(self.setProjectUI)
-		self.ui.project_comboBox.currentIndexChanged.connect(self.refreshUI)
+		self.ui.project_comboBox.currentIndexChanged.connect(self.setEpisodeUI)
 		self.ui.step_comboBox.currentIndexChanged.connect(self.refreshUI)
+		self.ui.episode_comboBox.currentIndexChanged.connect(self.refreshUI)
 		self.ui.status_listWidget.itemSelectionChanged.connect(self.setTaskUI)
-		self.ui.task_listWidget.itemSelectionChanged.connect(self.setEntity)
+		self.ui.task_listWidget.itemSelectionChanged.connect(self.setEntityUI)
 		self.ui.entities_listWidget.itemSelectionChanged.connect(self.entityListAction)
 		# self.ui.work_comboBox.currentIndexChanged.connect(self.listWorkFileUI)
 		self.ui.open_pushButton.clicked.connect(self.doOpen)
-		self.ui.filter1_checkBox.stateChanged.connect(self.filterAction)
-		self.ui.filter2_checkBox.stateChanged.connect(self.filterAction)
-		self.ui.filter1_comboBox.currentIndexChanged.connect(self.filterAction)
-		self.ui.filter2_comboBox.currentIndexChanged.connect(self.filterAction)
-		self.ui.search_lineEdit.textChanged.connect(self.filterAction)
+		# self.ui.filter1_checkBox.stateChanged.connect(self.filterAction)
+		# self.ui.filter2_checkBox.stateChanged.connect(self.filterAction)
+		# self.ui.filter1_comboBox.currentIndexChanged.connect(self.filterAction)
+		# self.ui.filter2_comboBox.currentIndexChanged.connect(self.filterAction)
+		# self.ui.search_lineEdit.textChanged.connect(self.filterAction)
 		self.ui.showAll_checkBox.stateChanged.connect(self.showNoteAction)
 		# self.ui.list_pushButton.clicked.connect(self.refreshUI)
 		self.ui.refresh_pushButton.clicked.connect(self.refreshUI)
@@ -240,11 +243,13 @@ class MyForm(QtGui.QMainWindow):
 
 	def setSelectionData(self) : 
 		project = str(self.ui.project_comboBox.currentIndex())
+		episode = str(self.ui.episode_comboBox.currentIndex())
 		user = str(self.ui.user_comboBox.currentIndex())
 		entity = str(self.ui.entity_comboBox.currentIndex())
 		step = str(self.ui.step_comboBox.currentIndex())
 
 		self.optionVar['data']['project'] = project 
+		self.optionVar['data']['episode'] = episode 
 		self.optionVar['data']['user'] = user
 		self.optionVar['data']['entity'] = entity 
 		self.optionVar['data']['step'] = step
@@ -258,13 +263,15 @@ class MyForm(QtGui.QMainWindow):
 		var = eval(hook.getOptionVar(self.optionVarName))
 
 		if var : 
-			index = var['data'][dataType]
+			if dataType in var['data'].keys() : 
+				index = var['data'][dataType]
 
-			if index and index.isdigit() : 
-				return int(index)
+				if index and index.isdigit() : 
+					return int(index)
 
 
 	def setStatusUI(self) : 
+
 		# add comboBox items
 		i = 0
 		self.ui.status_listWidget.clear()
@@ -274,6 +281,10 @@ class MyForm(QtGui.QMainWindow):
 		self.ui.sourceFiles_listWidget.clear()
 
 		listWidget = 'status_listWidget'
+
+		statuses = ['all']
+		statusDict = dict()
+
 		if self.taskInfo : 
 
 			for each in sorted(self.taskInfo.keys()) : 
@@ -283,30 +294,40 @@ class MyForm(QtGui.QMainWindow):
 				iconPath = '%s/%s' % (self.iconPath, iconFile)
 				bgColor = self.widgetColor[0]
 				
-				count = 0
-				for eachTask in self.taskInfo[each] : 
-					count += len(self.taskInfo[each][eachTask])
+				show = True 
 
-				text2 = '(%s)' % str(count)
+				if show : 
+					count = 0
+					for eachTask in self.taskInfo[each] : 
+						count += len(self.taskInfo[each][eachTask])
 
-				self.addEntityListWidget(listWidget, displayStatus, text2, bgColor, iconPath)
+					text2 = '(%s)' % str(count)
+
+					self.addEntityListWidget(listWidget, displayStatus, text2, bgColor, iconPath)
 
 				i += 1
 
 			self.ui.status_listWidget.setCurrentRow(0)
+
 
 		else : 
 			self.addEntityListWidget(listWidget, 'No Data', '', [0, 0, 0], '')
 
 
 	def listContent(self) : 
-		self.taskInfo, self.sgTaskInfo = self.getTaskInfo()
-		self.setStatusUI()
+		result = self.getTaskInfo()
+
+		if result : 
+			self.taskInfo =  result[0]
+			self.sgTaskInfo = result[1]
+			self.statusInfo = result[2]
+			self.setStatusUI()
+			self.setTaskUI()
+			self.setEntityUI()
 
 
 	def setEntity(self) : 
 		# set filters
-		self.setFilter()
 		
 		# list UI
 		self.setEntityUI()
@@ -325,9 +346,10 @@ class MyForm(QtGui.QMainWindow):
 	def getSelTask(self) : 
 		# get task 
 		taskListWidget = 'task_listWidget'
-		task = self.getEntityListWidget(taskListWidget)[0]
+		task = self.getEntityListWidget(taskListWidget)
 
-		return task
+		if task : 
+			return task[0]
 
 	def getSelEntity(self) : 
 		# get entity 
@@ -339,6 +361,7 @@ class MyForm(QtGui.QMainWindow):
 
 
 	def setEntityUI(self) : 
+		logger.debug('setEntityUI')
 		status = self.getSelStatus()
 		task = self.getSelTask()
 
@@ -347,24 +370,22 @@ class MyForm(QtGui.QMainWindow):
 		self.ui.sourceFiles_listWidget.clear()
 		self.ui.work_listWidget.clear()
 
-		# filter
-		filterSt1 = self.ui.filter1_checkBox.isChecked()
-		filterSt2 = self.ui.filter2_checkBox.isChecked()
-		filterValue1 = str(self.ui.filter1_comboBox.currentText())
-		filterValue2 = str(self.ui.filter2_comboBox.currentText())
 		searchValue = str(self.ui.search_lineEdit.text())
 
+
 		# list content 
+		i = 0 
+
 		if status in self.taskInfo.keys() : 
 			if task in self.taskInfo[status].keys() : 
-				entityInfos = self.taskInfo[status][task]
-				i = 0 
+				entities = self.taskInfo[status][task]
 
-				for each in sorted(entityInfos) : 
-					name = each['entityName']
-					entitySub1 = each['entitySub1']
-					entitySub2 = each['entitySub2']
-					sgStatus = each['status']
+				for eachEntity in entities : 
+					entitySub1 = eachEntity['entitySub1']
+					entitySub2 = eachEntity['entitySub2']
+					sgStatus = eachEntity['status']
+					taskName = eachEntity['taskName']
+					name = eachEntity['entityName']
 
 					# icon path 
 					displayStatus = self.sgStatusMap[sgStatus]
@@ -377,15 +398,6 @@ class MyForm(QtGui.QMainWindow):
 					listWidget = 'entities_listWidget'
 
 					show = True
-
-					# filters 
-					if filterSt1 : 
-						if not entitySub1 == filterValue1 : 
-							show = False
-
-					if filterSt2 : 
-						if not entitySub2 == filterValue2 : 
-							show = False
 
 					if searchValue : 
 						if not searchValue in name : 
@@ -403,8 +415,7 @@ class MyForm(QtGui.QMainWindow):
 		logger.debug('setTaskUI')
 		# status = self.ui.status_listWidget.currentItem()
 		statusListWidget = 'status_listWidget'
-		itemStatus = self.getEntityListWidget(statusListWidget)[0]
-		status = self.sgStatusIcon[itemStatus]['sg_status_list']
+		status = self.getSelStatus()
 
 		if status : 
 			if status in self.taskInfo.keys() : 
@@ -446,6 +457,27 @@ class MyForm(QtGui.QMainWindow):
 
 		if index : 
 			self.ui.project_comboBox.setCurrentIndex(index)
+
+	def setEpisodeUI(self) : 
+		# clear UI
+		self.ui.episode_comboBox.clear()
+		project = str(self.ui.project_comboBox.currentText())
+		self.episodes = self.getEpisodeList(project)
+
+		if self.episodes : 
+			for each in self.episodes : 
+				episode = self.episodes[each]['code']
+
+				# fill comboBox
+				self.ui.episode_comboBox.addItem(episode)
+
+		# set selection 
+		index = self.getPreviousSelection(self.episodes, 'episode')
+
+		if index : 
+			self.ui.episode_comboBox.setCurrentIndex(index)
+
+
 		
 
 	def setEntityComboBox(self) : 
@@ -491,13 +523,13 @@ class MyForm(QtGui.QMainWindow):
 	def setLabelUI(self) : 
 		entity = str(self.ui.entity_comboBox.currentText())
 
-		if entity == 'Asset' : 
-			self.ui.filter1_checkBox.setText('Type')
-			self.ui.filter2_checkBox.setText('SubType')
+		# if entity == 'Asset' : 
+		# 	self.ui.filter1_checkBox.setText('Type')
+		# 	self.ui.filter2_checkBox.setText('SubType')
 
-		if entity == 'Shot' : 
-			self.ui.filter1_checkBox.setText('Episode')
-			self.ui.filter2_checkBox.setText('Sequence')
+		# if entity == 'Shot' : 
+		# 	self.ui.filter1_checkBox.setText('Episode')
+		# 	self.ui.filter2_checkBox.setText('Sequence')
 
 
 
@@ -584,36 +616,32 @@ class MyForm(QtGui.QMainWindow):
 # 				i += 1
 
 
-	def setFilter(self) : 
-		status = self.getSelStatus()
-		task = self.getSelTask()
+	# def setFilter(self) : 
+	# 	sgEntityInfo = self.sgEntityInfo
+	# 	entitiesSub1 = []
+	# 	entitiesSub2 = []
 
-		taskInfo = self.taskInfo
-		filter1 = []
-		filter2 = []
+	# 	for each in sgEntityInfo : 
+	# 		entities = sgEntityInfo[each]
 
-		if status in taskInfo.keys() : 
-			if task in taskInfo[status].keys() : 
-				entityInfos = taskInfo[status][task]
+	# 		for eachEntity in entities : 
+	# 			entitySub1 = eachEntity['entitySub1']
+	# 			entitySub2 = eachEntity['entitySub2']
 
-				for each in entityInfos : 
-					name = each['entityName']
-					entitySub1 = each['entitySub1']
-					entitySub2 = each['entitySub2']
+	# 			if not entitySub1 in entitiesSub1 : 
+	# 				entitiesSub1.append(entitySub1)
 
-					if not entitySub1 in filter1 : 
-						filter1.append(entitySub1)
+	# 			if not entitySub2 in entitiesSub2 : 
+	# 				entitiesSub2.append(entitySub2)
 
-					if not entitySub2 in filter2 : 
-						filter2.append(entitySub2)
 
-		self.ui.filter1_comboBox.clear()
-		self.ui.filter2_comboBox.clear()
-		self.ui.filter1_comboBox.addItems(sorted(filter1))
-		self.ui.filter2_comboBox.addItems(sorted(filter2))
+	# 	self.ui.filter1_comboBox.clear()
+	# 	self.ui.filter2_comboBox.clear()
+	# 	self.ui.filter1_comboBox.addItems(sorted(entitiesSub1))
+	# 	self.ui.filter2_comboBox.addItems(sorted(entitiesSub2))
 
-	def filterAction(self) : 
-		self.setEntityUI()
+	# def filterAction(self) : 
+	# 	self.setEntityUI()
 
 
 	# def listWorkAreaUI(self) : 
@@ -767,6 +795,21 @@ class MyForm(QtGui.QMainWindow):
 
 		return projects 
 
+
+	def getEpisodeList(self, project) : 
+		filters = [['project.Project.name', 'is', project]]
+		fields = ['id', 'code']
+		episodeEntities = sgUtils.sg.find('Scene', filters, fields)
+
+		episodes = dict()
+
+		for each in episodeEntities : 
+			episode = each['code']
+			episodes.update({episode: each})
+
+		return episodes
+
+
 # 	def getStatusUI(self) : 
 # 		status = str(self.ui.status_comboBox.currentText())
 
@@ -786,6 +829,7 @@ class MyForm(QtGui.QMainWindow):
 
 		infoDict = dict()
 		sgTaskInfo = dict()
+		statusInfo = dict()
 
 		if taskInfo : 
 			for each in taskInfo : 
@@ -809,7 +853,7 @@ class MyForm(QtGui.QMainWindow):
 						entitySub1 = assetType
 						entitySub2 = assetSubType
 						displayName = assetName
-						entities.update({'entityName': entityName, 'entitySub1': entitySub1, 'entitySub2': entitySub2, 'status': status, 'step': step, 'taskID': taskID})
+						entities.update({'entityName': entityName, 'entitySub1': entitySub1, 'entitySub2': entitySub2, 'status': status, 'step': step, 'taskID': taskID, 'taskName': taskName, 'status': status})
 						# entities = {'name': displayName, 'status': status}
 
 					if entityType == 'Shot' : 
@@ -826,7 +870,7 @@ class MyForm(QtGui.QMainWindow):
 						if sequenceName : 
 							entitySub2 = sequenceName['name']
 
-						entities.update({'entityName': entityName, 'entitySub1': entitySub1, 'entitySub2': entitySub2, 'status': status, 'step': step, 'taskID': taskID})
+						entities.update({'entityName': entityName, 'entitySub1': entitySub1, 'entitySub2': entitySub2, 'status': status, 'step': step, 'taskID': taskID, 'taskName': taskName, 'status': status})
 						# entities = {'name': displayName, 'status': status}
 				
 				statuses = [status, 'all']
@@ -842,6 +886,7 @@ class MyForm(QtGui.QMainWindow):
 					else : 
 						infoDict.update({eachStatus: {taskName: [entities]}})
 
+				# taskInfo 
 				if entityName in sgTaskInfo.keys() : 
 					if taskName in sgTaskInfo[entityName] : 
 						sgTaskInfo[entityName][taskName] = each
@@ -852,7 +897,9 @@ class MyForm(QtGui.QMainWindow):
 				else : 
 					sgTaskInfo.update({entityName: {taskName: each}})
 
-		return infoDict, sgTaskInfo
+
+
+		return [infoDict, sgTaskInfo, statusInfo]
 
 
 	def getTaskEntities(self) : 
@@ -863,20 +910,25 @@ class MyForm(QtGui.QMainWindow):
 		project = str(self.ui.project_comboBox.currentText())
 		projectEntity = self.projects[project]
 
-		step = str(self.ui.step_comboBox.currentText())
-		print 'step %s' % step
-		if step in self.steps.keys() : 
-			stepEntity = self.steps[step]
+		episode = str(self.ui.episode_comboBox.currentText())
+		if episode in self.episodes.keys() : 
+			episodeEntity = self.episodes[episode]
 
-			filters = self.taskFilters(userEntity, projectEntity, stepEntity)
-			fields = self.taskFields()
-			taskEntities = sgUtils.sgGetTask(filters, fields)
+			step = str(self.ui.step_comboBox.currentText())
 
-			return taskEntities
+			if step in self.steps.keys() : 
+				stepEntity = self.steps[step]
+
+				filters = self.taskFilters(userEntity, projectEntity, episodeEntity, stepEntity)
+				fields = self.taskFields()
+				taskEntities = sgUtils.sgGetTask(filters, fields)
+
+				return taskEntities
 
 
 
-	def taskFilters(self, userEntity, projectEntity, stepEntity) : 
+	def taskFilters(self, userEntity, projectEntity, episodeEntity, stepEntity) : 
+		entity = str(self.ui.entity_comboBox.currentText())
 		filters = [['task_assignees', 'is', userEntity], ['step', 'is', stepEntity], ['project', 'is', projectEntity]]
 		advancedFilter1 = { 
 							"filter_operator": "any", 
@@ -894,13 +946,19 @@ class MyForm(QtGui.QMainWindow):
 
 		filters.append(advancedFilter1)
 
+		if entity == 'Asset' : 
+			filters.append(['entity.Asset.scenes', 'is', episodeEntity])
+
+		if entity == 'Shot' : 
+			filters.append(['entity.Shot.sg_scene', 'is', episodeEntity])		
+
 		return filters
 
 
 	def taskFields(self) : 
 		fields = ['content', 'entity', 'step', 'project', 'sg_status_list', 'sg_workfile']
-		assetFields = ['entity.Asset.code', 'entity.Asset.sg_asset_type', 'entity.Asset.sg_subtype']
-		shotFields = ['entity.Shot.code', 'entity.Shot.sg_sequence', 'entity.Shot.sg_scene']
+		assetFields = ['entity.Asset.code', 'entity.Asset.sg_asset_type', 'entity.Asset.sg_subtype', 'entity.Asset.scenes']
+		shotFields = ['entity.Shot.code', 'entity.Shot.sg_sequence', 'entity.Shot.sg_scene', 'entity.Shot.sg_scene']
 
 		fields = fields + assetFields
 		fields = fields + shotFields 
