@@ -17,3 +17,10 @@ def setOptionVar(name, data) :
 
 def getOptionVar(name) : 
 	return mc.optionVar(q = name)
+
+def newFile() : 
+	mc.file(new = True, f = True)
+
+def saveFile(fileName) : 
+	mc.file(rename = fileName)
+	mc.file(save = True, type = 'mayaAscii', f = True)

@@ -116,7 +116,7 @@ class MyForm(QtGui.QMainWindow):
 								'Client Approved': {'iconName': 'green_icon.png', 'sg_status_list': 'aprv'}, 
 								'Waiting to Start': {'iconName': 'wtg_icon.png', 'sg_status_list': 'wtg'}}
 
-		self.stepMap = {'Model': 'model', 'Rig': 'rig', 'texture': 'uv', 'Surface': 'shade'}
+		self.stepMap = {'Model': 'model', 'Rig': 'rig', 'texture': 'uv', 'Surface': 'surface'}
 		self.extIcon = {'ma': '%s/icons/maya_icon.png' % (os.path.dirname(moduleDir))}
 
 		self.projectFilters = ['Lego_', 'TVC_']
@@ -161,6 +161,7 @@ class MyForm(QtGui.QMainWindow):
 
 	def initSignal(self) : 
 		logger.debug('init signal')
+		self.ui.refresh_pushButton.clicked.connect(self.refreshUI)
 		self.ui.user_comboBox.currentIndexChanged.connect(self.refreshUI)
 		# self.ui.status_comboBox.currentIndexChanged.connect(self.setEntityTypeUI)
 		self.ui.entity_comboBox.currentIndexChanged.connect(self.entityComboBoxSignal)
@@ -168,19 +169,26 @@ class MyForm(QtGui.QMainWindow):
 		self.ui.project_comboBox.currentIndexChanged.connect(self.setEpisodeUI)
 		self.ui.step_comboBox.currentIndexChanged.connect(self.refreshUI)
 		self.ui.episode_comboBox.currentIndexChanged.connect(self.refreshUI)
+
 		self.ui.status_listWidget.itemSelectionChanged.connect(self.setTaskUI)
 		self.ui.task_listWidget.itemSelectionChanged.connect(self.setEntityUI)
 		self.ui.entities_listWidget.itemSelectionChanged.connect(self.entityListAction)
 		# self.ui.work_comboBox.currentIndexChanged.connect(self.listWorkFileUI)
+
 		self.ui.open_pushButton.clicked.connect(self.doOpen)
+		self.ui.new_pushButton.clicked.connect(self.doNewFile)
 		# self.ui.filter1_checkBox.stateChanged.connect(self.filterAction)
 		# self.ui.filter2_checkBox.stateChanged.connect(self.filterAction)
 		# self.ui.filter1_comboBox.currentIndexChanged.connect(self.filterAction)
 		# self.ui.filter2_comboBox.currentIndexChanged.connect(self.filterAction)
 		# self.ui.search_lineEdit.textChanged.connect(self.filterAction)
+		
 		self.ui.showAll_checkBox.stateChanged.connect(self.showNoteAction)
 		# self.ui.list_pushButton.clicked.connect(self.refreshUI)
-		self.ui.refresh_pushButton.clicked.connect(self.refreshUI)
+
+		self.ui.work_radioButton.clicked.connect(self.listWorkFileUI)
+		self.ui.publish_radioButton.clicked.connect(self.listWorkFileUI)
+		self.ui.source_radioButton.clicked.connect(self.listWorkFileUI)
 
 
 	def setUI(self) : 
@@ -364,6 +372,7 @@ class MyForm(QtGui.QMainWindow):
 		logger.debug('setEntityUI')
 		status = self.getSelStatus()
 		task = self.getSelTask()
+		entityType = str(self.ui.entity_comboBox.currentText())
 
 		self.ui.entities_listWidget.clear()
 		self.ui.comment_plainTextEdit.clear()
@@ -408,7 +417,16 @@ class MyForm(QtGui.QMainWindow):
 						# self.addListWidgetItem(listWidget, display, iconPath, color)
 						self.addEntityListWidget2(listWidget, display, entitySub1, entitySub2, color, iconPath, size = 16)
 
-					i += 1 
+						i += 1 
+
+		displayText = ''
+		if entityType == 'Asset' : 
+			displayText = 'Asset : %s assets - %s' % (i, task)
+
+		if entityType == 'Shot' : 
+			displayText = 'Shot : %s shots - %s' % (i, task)
+
+		self.ui.entity_label.setText(displayText)
 
 
 	def setTaskUI(self) : 
@@ -465,7 +483,7 @@ class MyForm(QtGui.QMainWindow):
 		self.episodes = self.getEpisodeList(project)
 
 		if self.episodes : 
-			for each in self.episodes : 
+			for each in sorted(self.episodes) : 
 				episode = self.episodes[each]['code']
 
 				# fill comboBox
@@ -547,8 +565,9 @@ class MyForm(QtGui.QMainWindow):
 		entitySub1 = selEntity[1]
 		entitySub2 = selEntity[2]
 
-		entity = entityInfo.info2(entityType, selProject, entityName, entitySub1, entitySub2)
-		workDir = entity.workDir(serverStep, selTask)
+		self.asset = entityInfo.info2(entityType, selProject, entityName, entitySub1, entitySub2)
+		workDir = self.asset.workDir(serverStep, selTask)
+		self.asset2 = entityInfo.info(workDir)
 
 		# set UI
 		self.ui.path_lineEdit.setText(workDir)
@@ -561,7 +580,7 @@ class MyForm(QtGui.QMainWindow):
 		self.showNoteAction()
 
 		# list source file
-		self.showSourceFile()
+		# self.showSourceFile()
 
 
 
@@ -692,13 +711,69 @@ class MyForm(QtGui.QMainWindow):
 		# clear UI
 		self.ui.work_listWidget.clear()
 
-		path = str(self.ui.path_lineEdit.text())
-		# workArea = str(self.ui.work_comboBox.currentText()) 
+		# mode 
+		work = self.ui.work_radioButton.isChecked()
+		publish = self.ui.publish_radioButton.isChecked()
+		sourceFile = self.ui.source_radioButton.isChecked()
 
-		files = fileUtils.listFile(path)
+		self.publishFileMap = dict()
+
 		listWidget = 'work_listWidget'
+		
+		if work : 
+			# hide new button 
+			self.ui.new_pushButton.setEnabled(True)
 
-		self.listFileListWidget(listWidget, files)
+			path = str(self.ui.path_lineEdit.text())
+			# workArea = str(self.ui.work_comboBox.currentText()) 
+
+			files = fileUtils.listFile(path)
+
+			self.listFileListWidget(listWidget, files)
+
+		if publish : 
+			# hide new button 
+			self.ui.new_pushButton.setEnabled(False) 
+
+			step = self.stepMap[str(self.ui.step_comboBox.currentText())]
+			task = self.getSelTask()
+			key = '%s-%s' % (step, task)
+
+			displayList = []
+
+			for each in setting.publishMap : 
+				keyList = setting.publishMap[each]
+
+				if key in keyList : 
+					for eachKey in keyList : 
+						eStep = eachKey.split('-')[0]
+						eTask = eachKey.split('-')[-1]
+						publishDir = self.asset.publishDir(eStep, eTask)
+						
+						displayList.append('== %s ==' % eachKey)
+						filenames = []
+
+						if os.path.exists(publishDir) : 
+							files = fileUtils.listFile(publishDir)
+							# filenames = [os.path.basename(a) for a in files]
+							displayList = displayList + files
+
+							for eachFile in files : 
+								self.publishFileMap.update({eachFile: '%s/%s' % (publishDir, eachFile)})
+
+						if not filenames : 
+							displayList.append('No File')
+
+			self.listFileListWidget(listWidget, displayList) 
+			
+			
+		if sourceFile : 
+			# hide new button 
+			self.ui.new_pushButton.setEnabled(False)
+			
+			self.showSourceFile()
+
+		print work, publish, sourceFile 
 
 
 	def listFileListWidget(self, listWidget, items) : 
@@ -724,32 +799,77 @@ class MyForm(QtGui.QMainWindow):
 
 
 	def doOpen(self) : 
-		path = str(self.ui.path_lineEdit.text())
-		# workArea = str(self.ui.work_comboBox.currentText()) 
+		# mode 
+		work = self.ui.work_radioButton.isChecked()
+		publish = self.ui.publish_radioButton.isChecked()
+		sourceFile = self.ui.source_radioButton.isChecked()
+
 		if self.ui.work_listWidget.currentItem() : 
+			path = str(self.ui.path_lineEdit.text())
 			fileName = str(self.ui.work_listWidget.currentItem().text())
 			filePath = '%s/%s' % (path, fileName)
+			
+			if work : 
+				# workArea = str(self.ui.work_comboBox.currentText()) 
 
-			if os.path.exists(filePath) : 
-				hook.openFile(filePath)
+				if os.path.exists(filePath) : 
+					hook.openFile(filePath)
 
-				# set task status 
-				ipCheckBox = self.ui.ip_checkBox.isChecked()
-				setTask = True
+					# set task status 
+					ipCheckBox = self.ui.ip_checkBox.isChecked()
+					setTask = True
 
-				if not ipCheckBox : 
-					result = self.messageBox2('Confirm Dialog', 'Set task status to "in progress"?')
+					if not ipCheckBox : 
+						result = self.messageBox2('Confirm Dialog', 'Set task status to "in progress"?')
 
-					if not result == QtGui.QMessageBox.Yes : 
-						setTask = False
+						if not result == QtGui.QMessageBox.Yes : 
+							setTask = False
 
-				if setTask : 
-					result2 = self.setTaskStatus()
+					if setTask : 
+						result2 = self.setTaskStatus()
 
-			else : 
-				title = 'Error'
-				description = 'File not found %s' % filePath
-				self.messageBox(title, description)
+				else : 
+					title = 'Error'
+					description = 'File not found %s' % filePath
+					self.messageBox(title, description)
+
+			if publish : 
+				if fileName in self.publishFileMap.keys() : 
+					path = self.publishFileMap[fileName]
+
+					if os.path.exists(path) : 
+						hook.openFile(path)
+
+					else : 
+						title = 'Error'
+						description = 'File not found %s' % filePath
+						self.messageBox(title, description)
+
+				else : 
+					logger.debug('%s not in kyes' % fileName)
+
+			if sourceFile : 
+				fileName = str(self.ui.work_listWidget.currentItem().text())
+				if fileName in self.sourceFileInfo.keys() : 
+					path = self.sourceFileInfo[fileName]
+
+					if os.path.exists(path) : 
+						hook.openFile(path)
+
+					else : 
+						self.messageBox('Warning', 'File %s not exists' % path)
+
+
+
+	def doNewFile(self) : 
+		hook.newFile()
+		step = str(self.ui.step_comboBox.currentText())
+		task = self.getSelTask()
+		name = self.asset.nextVersion(step, task)
+		logger.info(name)
+		hook.saveFile(name)
+		self.listWorkFileUI()
+
 
 
 
@@ -780,7 +900,6 @@ class MyForm(QtGui.QMainWindow):
 			logger.info('%s not exists' % path)
 
 
-
 	def getProjectList(self) : 
 		sgProjects = sgUtils.sgGetProjects()
 		svProjects = fileUtils.listFolder(self.server)
@@ -801,7 +920,7 @@ class MyForm(QtGui.QMainWindow):
 		fields = ['id', 'code']
 		episodeEntities = sgUtils.sg.find('Scene', filters, fields)
 
-		episodes = dict()
+		episodes = {'-': {'code': '-'}}
 
 		for each in episodeEntities : 
 			episode = each['code']
@@ -946,11 +1065,13 @@ class MyForm(QtGui.QMainWindow):
 
 		filters.append(advancedFilter1)
 
-		if entity == 'Asset' : 
-			filters.append(['entity.Asset.scenes', 'is', episodeEntity])
+		if not episodeEntity['code'] == '-' : 
 
-		if entity == 'Shot' : 
-			filters.append(['entity.Shot.sg_scene', 'is', episodeEntity])		
+			if entity == 'Asset' : 
+				filters.append(['entity.Asset.scenes', 'is', episodeEntity])
+
+			if entity == 'Shot' : 
+				filters.append(['entity.Shot.sg_scene', 'is', episodeEntity])		
 
 		return filters
 
@@ -1037,43 +1158,49 @@ class MyForm(QtGui.QMainWindow):
 
 	def getSgNote(self) : 
 		taskEntity = self.getCurrentTaskEntity()
-		entity = taskEntity['entity']
 
-		filters = [['note_links', 'is', entity]]
-		fields = ['tasks', 'content', 'subject']
+		if taskEntity : 
+			if 'entity' in taskEntity.keys() : 
+				entity = taskEntity['entity']
 
-		result = sgUtils.sg.find('Note', filters, fields)
-		return result 
+				filters = [['note_links', 'is', entity]]
+				fields = ['tasks', 'content', 'subject']
+
+				result = sgUtils.sg.find('Note', filters, fields)
+				return result 
 
 
 	def showSourceFile(self) : 
-		self.ui.sourceFiles_listWidget.clear()
+		logger.debug('show source file')
+		self.ui.work_listWidget.clear()
 
 		taskEntity = self.getCurrentTaskEntity()
 		filePaths = []
 
-		if taskEntity['sg_workfile'] : 
-			filePath = [taskEntity['sg_workfile']['local_path_windows']]
-			filePaths = [os.path.basename(a) for a in filePath]
+		if taskEntity : 
+			if taskEntity['sg_workfile'] : 
+				filePaths = [taskEntity['sg_workfile']['local_path_windows']]
+				displayFilePaths = [os.path.basename(a) for a in filePaths]
 
-		self.listFileListWidget('sourceFiles_listWidget', filePaths)
+				if filePaths : 
+					for each in filePaths : 
+						self.sourceFileInfo.update({os.path.basename(each): each})
 
-		if filePaths : 
-			for each in filePaths : 
-				self.sourceFileInfo.update({os.path.basename(each): each})
-
+		self.listFileListWidget('work_listWidget', displayFilePaths)
 
 
 	def getCurrentTaskEntity(self) : 
 		selStatus = self.getSelStatus()
 		selTask = self.getSelTask()
 		selEntity = self.getSelEntity()
-		entityName = selEntity[0]
 
-		if entityName in self.sgTaskInfo.keys() : 
-			if selTask in self.sgTaskInfo[entityName].keys() : 
-				taskEntity = self.sgTaskInfo[entityName][selTask]
-				return taskEntity
+		if selEntity : 
+			entityName = selEntity[0]
+
+			if entityName in self.sgTaskInfo.keys() : 
+				if selTask in self.sgTaskInfo[entityName].keys() : 
+					taskEntity = self.sgTaskInfo[entityName][selTask]
+					return taskEntity
 
 
 		
@@ -1296,12 +1423,14 @@ class MyForm(QtGui.QMainWindow):
 
 	def getEntityListWidget2(self, listWidget) : 
 		item = eval('self.ui.%s.currentItem()' % listWidget)
-		customWidget = eval('self.ui.%s.itemWidget(item)' % listWidget)
-		text1 = customWidget.text1()
-		text2 = customWidget.text2()
-		text3 = customWidget.text3()
 
-		return [text1, text2, text3]
+		if item : 
+			customWidget = eval('self.ui.%s.itemWidget(item)' % listWidget)
+			text1 = customWidget.text1()
+			text2 = customWidget.text2()
+			text3 = customWidget.text3()
+
+			return [text1, text2, text3]
 
 
 	def addListWidgetItem(self, listWidget, text, iconPath, color) : 

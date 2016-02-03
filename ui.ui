@@ -107,6 +107,13 @@
              </property>
             </widget>
            </item>
+           <item>
+            <widget class="QPushButton" name="refresh_pushButton">
+             <property name="text">
+              <string>Refresh</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
         </layout>
@@ -190,18 +197,11 @@
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_10">
              <item>
-              <layout class="QHBoxLayout" name="horizontalLayout_5">
-               <item>
-                <widget class="QLineEdit" name="search_lineEdit"/>
-               </item>
-               <item>
-                <widget class="QPushButton" name="search_pushButton">
-                 <property name="text">
-                  <string>Search</string>
-                 </property>
-                </widget>
-               </item>
-              </layout>
+              <widget class="QLabel" name="info_label">
+               <property name="text">
+                <string>-</string>
+               </property>
+              </widget>
              </item>
              <item>
               <widget class="Line" name="line">
@@ -213,7 +213,7 @@
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_11">
                <item>
-                <widget class="QLabel" name="label_8">
+                <widget class="QLabel" name="entity_label">
                  <property name="text">
                   <string>Asset / Shot</string>
                  </property>
@@ -221,13 +221,6 @@
                </item>
                <item>
                 <widget class="QListWidget" name="entities_listWidget"/>
-               </item>
-               <item>
-                <widget class="Line" name="line_2">
-                 <property name="orientation">
-                  <enum>Qt::Horizontal</enum>
-                 </property>
-                </widget>
                </item>
                <item>
                 <widget class="QCheckBox" name="note_checkBox">
@@ -240,11 +233,25 @@
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="refresh_pushButton">
-                 <property name="text">
-                  <string>Refresh</string>
+                <widget class="Line" name="line_2">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
                  </property>
                 </widget>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="horizontalLayout_5">
+                 <item>
+                  <widget class="QLineEdit" name="search_lineEdit"/>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="search_pushButton">
+                   <property name="text">
+                    <string>Search</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
                </item>
               </layout>
              </item>
@@ -272,16 +279,30 @@
            <property name="frameShadow">
             <enum>QFrame::Sunken</enum>
            </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,2">
+           <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,0,0">
             <item>
-             <widget class="QLabel" name="label_5">
+             <widget class="QRadioButton" name="work_radioButton">
               <property name="text">
-               <string>work area : </string>
+               <string>Work area</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QComboBox" name="work_comboBox"/>
+             <widget class="QRadioButton" name="publish_radioButton">
+              <property name="text">
+               <string>Publish area</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QRadioButton" name="source_radioButton">
+              <property name="text">
+               <string>Source file</string>
+              </property>
+             </widget>
             </item>
            </layout>
           </widget>
@@ -296,6 +317,13 @@
            </property>
            <property name="checked">
             <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="new_pushButton">
+           <property name="text">
+            <string>New work file</string>
            </property>
           </widget>
          </item>
