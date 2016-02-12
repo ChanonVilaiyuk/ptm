@@ -738,11 +738,13 @@ class MyForm(QtGui.QMainWindow):
 			step = self.stepMap[str(self.ui.step_comboBox.currentText())]
 			task = self.getSelTask()
 			key = '%s-%s' % (step, task)
+			colorMap = [[20, 0, 0], [0, 20, 0], [0, 0, 20]]
 
-			displayList = []
-
+			i = 0 
 			for each in setting.publishMap : 
 				keyList = setting.publishMap[each]
+				displayList = []
+				colorShift = colorMap[i%3]
 
 				if key in keyList : 
 					for eachKey in keyList : 
@@ -764,20 +766,21 @@ class MyForm(QtGui.QMainWindow):
 						if not filenames : 
 							displayList.append('No File')
 
-			self.listFileListWidget(listWidget, displayList) 
+					self.listFileListWidget(listWidget, displayList, colorShift = colorShift) 
+
+				i += 1 
 			
 			
 		if sourceFile : 
 			# hide new button 
 			self.ui.new_pushButton.setEnabled(False)
-			
+
 			self.showSourceFile()
 
 		print work, publish, sourceFile 
 
 
-	def listFileListWidget(self, listWidget, items) : 
-
+	def listFileListWidget(self, listWidget, items, colorShift = [0, 0, 0]) : 
 		i = 0
 
 		if items : 
@@ -785,6 +788,8 @@ class MyForm(QtGui.QMainWindow):
 				ext = each.split('.')[-1]
 				iconPath = ''
 				bgColor = self.widgetColor[i%2]
+				bgColor = [bgColor[0] + colorShift[0], bgColor[1] + colorShift[1], bgColor[2] + colorShift[2]]
+				print bgColor
 
 				if ext in self.extIcon.keys() : 
 					iconPath = self.extIcon[ext]
@@ -869,6 +874,7 @@ class MyForm(QtGui.QMainWindow):
 		logger.info(name)
 		hook.saveFile(name)
 		self.listWorkFileUI()
+		# print name
 
 
 
@@ -1176,6 +1182,7 @@ class MyForm(QtGui.QMainWindow):
 
 		taskEntity = self.getCurrentTaskEntity()
 		filePaths = []
+		displayFilePaths = []
 
 		if taskEntity : 
 			if taskEntity['sg_workfile'] : 
