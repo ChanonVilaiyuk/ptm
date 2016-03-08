@@ -33,7 +33,7 @@ stepSgPipeMap = {
 					'Hero': 'hero'
 				}
 
-publishMap = {'hi': ['model-model_hi', 'rig-rig_hi', 'uv-uv_hi', 'surface-shade_hi'], 
-				'md': ['model-model_md', 'rig-rig_md', 'uv-uv_md', 'surface-shade_md'], 
-				'lo': ['model-model_lo', 'rig-rig_lo', 'uv-uv_lo', 'surface-shade_lo']
+publishMap = {'hi': ['model-model_hi', 'rig-rig_hi', 'rig-rigUV_hi', 'uv-uv_hi', 'surface-shade_hi'], 
+				'md': ['model-model_md', 'rig-rig_md', 'rig-rigUV_md', 'uv-uv_md', 'surface-shade_md'], 
+				'lo': ['model-model_lo', 'rig-rig_lo', 'rig-rigUV_lo', 'uv-uv_lo', 'surface-shade_lo']
 				}

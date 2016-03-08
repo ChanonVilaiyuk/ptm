@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'O:\studioTools\tools\ptm\ui.ui'
 #
-# Created: Mon Feb 01 00:39:28 2016
+# Created: Tue Mar 08 14:55:28 2016
 #      by: PyQt4 UI code generator 4.9.5
 #
 # WARNING! All changes made in this file will be lost!
@@ -85,6 +85,7 @@ class Ui_taskManager(object):
         self.path_lineEdit.setObjectName(_fromUtf8("path_lineEdit"))
         self.horizontalLayout_2.addWidget(self.path_lineEdit)
         self.status_label = QtGui.QLabel(self.frame)
+        self.status_label.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.status_label.setObjectName(_fromUtf8("status_label"))
         self.horizontalLayout_2.addWidget(self.status_label)
         self.refresh_pushButton = QtGui.QPushButton(self.frame)
@@ -207,6 +208,7 @@ class Ui_taskManager(object):
         self.horizontalLayout_3.addWidget(self.source_radioButton)
         self.verticalLayout_7.addWidget(self.frame_2)
         self.work_listWidget = QtGui.QListWidget(self.frame_5)
+        self.work_listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.work_listWidget.setObjectName(_fromUtf8("work_listWidget"))
         self.verticalLayout_7.addWidget(self.work_listWidget)
         self.ip_checkBox = QtGui.QCheckBox(self.frame_5)

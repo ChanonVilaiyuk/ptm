@@ -190,6 +190,10 @@ class MyForm(QtGui.QMainWindow):
 		self.ui.publish_radioButton.clicked.connect(self.listWorkFileUI)
 		self.ui.source_radioButton.clicked.connect(self.listWorkFileUI)
 
+		# right click 
+		self.ui.work_listWidget.customContextMenuRequested.connect(self.showMenu)
+		self.ui.status_label.customContextMenuRequested.connect(self.showMenu2)
+
 
 	def setUI(self) : 
 		self.setUser()
@@ -239,6 +243,105 @@ class MyForm(QtGui.QMainWindow):
 		self.ui.user_comboBox.setCurrentIndex(userIndex)
 
 		return userIndex
+
+
+	def showMenu(self,pos):
+		# mode 
+		work = self.ui.work_radioButton.isChecked()
+		publish = self.ui.publish_radioButton.isChecked()
+		sourceFile = self.ui.source_radioButton.isChecked()
+
+		selItem = str(self.ui.work_listWidget.currentItem().text())
+
+		if not '==' in selItem : 
+			if publish : 
+				if self.ui.work_listWidget.currentItem() : 
+					menu=QtGui.QMenu(self)
+					# menu.addAction('Rename')
+					# menu.addAction('Delete')
+
+					subMenu = QtGui.QMenu('Open', self)
+					subMenu.addAction('Open')
+					subMenu.addAction('Open as work file')
+
+					subMenu2 = QtGui.QMenu('Import', self)
+					subMenu2.addAction('Import')
+					subMenu2.addAction('Import to new file')
+
+					subMenu3 = QtGui.QMenu('Reference', self)
+					subMenu3.addAction('Reference')
+					subMenu3.addAction('Reference to new file')
+					# items = self.getPlayblastFile()
+
+					# for each in items : 
+					# 	subMenu3.addAction(each)
+
+					menu.addMenu(subMenu)
+					menu.addMenu(subMenu2)
+					menu.addMenu(subMenu3)
+
+					menu.popup(self.ui.work_listWidget.mapToGlobal(pos))
+					result = menu.exec_(self.ui.work_listWidget.mapToGlobal(pos))
+
+					if result : 
+						self.menuCommand(result.text(), result.parentWidget().title())
+
+
+	def showMenu2(self, pos) : 
+		path = str(self.ui.path_lineEdit.text())
+
+		if path : 
+			if not os.path.exists(path) : 
+				menu = QtGui.QMenu(self)
+				menu.addAction('Create work dir')
+
+				menu.popup(self.ui.status_label.mapToGlobal(pos))
+				result = menu.exec_(self.ui.status_label.mapToGlobal(pos))
+
+				if result.text() == 'Create work dir' : 
+					os.makedirs(path)
+					self.setLabel(True)
+
+
+
+	def menuCommand(self, command, categories) : 
+		fileName = str(self.ui.work_listWidget.currentItem().text())
+		path = str(self.ui.path_lineEdit.text())
+		filePath = self.publishFileMap[fileName]
+		asset = entityInfo.info(path)
+
+		if os.path.exists(filePath) : 
+
+			if categories == 'Open' : 
+				if command == 'Open' : 
+					hook.openFile(filePath)
+
+				if command == 'Open as work file' : 
+					workFile = asset.nextVersion(asset.department(), asset.task())
+					hook.openFile(filePath)
+					hook.saveFile(workFile)
+					# print workFile
+
+			if categories == 'Import' : 
+				if command == 'Import' : 
+					hook.importFile(filePath)
+
+				if command == 'Import to new file' : 
+					hook.newFile()
+					hook.importFile(filePath)
+
+			if categories == 'Reference' : 
+				namespace = asset.name()
+
+				if command == 'Reference' : 
+					hook.createReference(namespace, filePath)
+
+				if command == 'Reference to new file' : 
+					hook.newFile()
+					hook.createReference(namespace, filePath)
+
+		else : 
+			self.messageBox('Error', 'File %s not exists' % filePath)
 
 
 
@@ -734,11 +837,13 @@ class MyForm(QtGui.QMainWindow):
 		if publish : 
 			# hide new button 
 			self.ui.new_pushButton.setEnabled(False) 
+			self.ui.open_pushButton.setText('Open As')
 
 			step = self.stepMap[str(self.ui.step_comboBox.currentText())]
 			task = self.getSelTask()
 			key = '%s-%s' % (step, task)
 			colorMap = [[20, 0, 0], [0, 20, 0], [0, 0, 20]]
+			colorMap = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
 
 			i = 0 
 			for each in setting.publishMap : 
@@ -756,7 +861,7 @@ class MyForm(QtGui.QMainWindow):
 						filenames = []
 
 						if os.path.exists(publishDir) : 
-							files = fileUtils.listFile(publishDir)
+							files = fileUtils.listFile(publishDir, 'ma')
 							# filenames = [os.path.basename(a) for a in files]
 							displayList = displayList + files
 
@@ -777,7 +882,7 @@ class MyForm(QtGui.QMainWindow):
 
 			self.showSourceFile()
 
-		print work, publish, sourceFile 
+		# print work, publish, sourceFile 
 
 
 	def listFileListWidget(self, listWidget, items, colorShift = [0, 0, 0]) : 
@@ -789,7 +894,7 @@ class MyForm(QtGui.QMainWindow):
 				iconPath = ''
 				bgColor = self.widgetColor[i%2]
 				bgColor = [bgColor[0] + colorShift[0], bgColor[1] + colorShift[1], bgColor[2] + colorShift[2]]
-				print bgColor
+				# print bgColor
 
 				if ext in self.extIcon.keys() : 
 					iconPath = self.extIcon[ext]

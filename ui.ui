@@ -102,6 +102,9 @@
            </item>
            <item>
             <widget class="QLabel" name="status_label">
+             <property name="contextMenuPolicy">
+              <enum>Qt::CustomContextMenu</enum>
+             </property>
              <property name="text">
               <string>-</string>
              </property>
@@ -308,7 +311,11 @@
           </widget>
          </item>
          <item>
-          <widget class="QListWidget" name="work_listWidget"/>
+          <widget class="QListWidget" name="work_listWidget">
+           <property name="contextMenuPolicy">
+            <enum>Qt::CustomContextMenu</enum>
+           </property>
+          </widget>
          </item>
          <item>
           <widget class="QCheckBox" name="ip_checkBox">
